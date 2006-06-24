@@ -1,78 +1,32 @@
 NAME
-    NetAddr::IP::Util -- IPv4/6 and 128 bit number utilities
+    NetAddr::IP::Lite - Manages IPv4 and IPv6 addresses and subnets
 
 SYNOPSIS
-      use NetAddr::IP::Util qw(
-            inet_aton
-            inet_ntoa
-            ipv6_aton
-            ipv6_n2x
-            ipv6_n2d
-            inet_any2n
-            hasbits
-            isIPv4
-            inet_n2dx
-            inet_n2ad
-            ipv4to6
-            mask4to6
-            ipanyto6
-            maskanyto6
-            ipv6to4
-            shiftleft
-            addconst
-            add128
-            sub128
-            notcontiguous
-            bin2bcd
-            bcd2bin
-            mode
+      use NetAddr::IP::Lite qw(
+            Zeros
+            Ones
+            V4mask
+            V4net
+            :aton
       );
 
-      use NetAddr::IP::Util qw(:all :inet :ipv4 :ipv6 :math)
+      my $ip = new NetAddr::IP::Lite '127.0.0.1';
 
-      :inet   =>    inet_aton, inet_ntoa, ipv6_aton,
-                    ipv6_n2x, ipv6_n2d, inet_any2n, 
-                    inet_n2dx, inet_n2ad, ipv4to6,
-                    mask4to6, ipanyto6, maskanyto6,
-                    ipv6to4
+      print "The address is ", $ip->addr, " with mask ", $ip->mask, "\n" ;
 
-      :ipv4   =>    inet_aton, inet_ntoa
+      if ($ip->within(new NetAddr::IP::Lite "127.0.0.0", "255.0.0.0")) {
+          print "Is a loopback address\n";
+      }
 
-      :ipv6   =>    ipv6_aton, ipv6_n2x, ipv6_n2d,
-                    inet_any2n, inet_n2dx, inet_n2ad
-                    ipv4to6, mask4to6, ipanyto6,
-                    maskanyto6, ipv6to4
+                                    # This prints 127.0.0.1/32
+      print "You can also say $ip...\n";
 
-      :math   =>    hasbits, isIPv4, addconst,
-                    add128, sub128, notcontiguous,
-                    bin2bcd, bcd2bin, shiftleft
+      The following four functions return ipV6 representations of:
 
-      $dotquad = inet_ntoa($netaddr);
-      $netaddr = inet_aton($dotquad);
-      $ipv6naddr = ipv6_aton($ipv6_text);
-      $hex_text = ipv6_n2x($ipv6naddr);
-      $dec_text = ipv6_n2d($ipv6naddr);
-      $ipv6naddr = inet_any2n($dotquad or $ipv6_text);
-      $rv = hasbits($bits128);
-      $rv = isIPv4($bits128);
-      $dotquad or $hex_text = inet_n2dx($ipv6naddr);
-      $dotquad or $dec_text = inet_n2ad($ipv6naddr);
-      $ipv6naddr = ipv4to6($netaddr);
-      $ipv6naddr = mask4to6($netaddr);
-      $ipv6naddr = ipanyto6($netaddr);
-      $ipv6naddr = maskanyto6($netaddr);
-      $netaddr = ipv6to4($pv6naddr);
-      $bitsX2 = shiftleft($bits128,$n);
-      $carry = addconst($ipv6naddr,$signed_32con);
-      ($carry,$ipv6naddr)=addconst($ipv6naddr,$signed_32con);
-      $carry = add128($ipv6naddr1,$ipv6naddr2);
-      ($carry,$ipv6naddr)=add128($ipv6naddr1,$ipv6naddr2);
-      $carry = sub128($ipv6naddr1,$ipv6naddr2);
-      ($carry,$ipv6naddr)=sub128($ipv6naddr1,$ipv6naddr2);
-      ($spurious,$cidr) = notcontiguous($mask128);
-      $bcdtext = bin2bcd($bits128);
-      $bits128 = bcd2bin($bcdtxt);
-      $modetext = mode;
+      ::                                       = Zeros();
+      FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF: = Ones();
+      FFFF:FFFF:FFFF:FFFF:FFFF:FFFF::          = V4mask();
+      ::FFFF:FFFF                              = V4net();
 
 INSTALLATION
     Un-tar the distribution in an appropriate directory and type:
@@ -82,10 +36,10 @@ INSTALLATION
             make test
             make install
 
-    NetAddr::IP::Util installs by default with its primary functions
-    compiled using Perl's XS extensions to build a 'C' library. If you do
-    not have a 'C' complier available or would like the slower Pure Perl
-    version for some other reason, then type:
+    NetAddr::IP::Lite depends on NetAddr::IP::Util which installs by default
+    with its primary functions compiled using Perl's XS extensions to build
+    a 'C' library. If you do not have a 'C' complier available or would like
+    the slower Pure Perl version for some other reason, then type:
 
             perl Makefile.PL -noxs
             make
@@ -93,359 +47,275 @@ INSTALLATION
             make install
 
 DESCRIPTION
-    NetAddr::IP::Util provides a suite of tools for manipulating and
-    converting IPv4 and IPv6 addresses into 128 bit string context and back
-    to text. The strings can be manipulated with Perl's logical operators:
+    This module provides an object-oriented abstraction on top of IP
+    addresses or IP subnets, that allows for easy manipulations. Most of the
+    operations of NetAddr::IP are supported. This module will work older
+    versions of Perl and does not use Math::BigInt.
 
-            and     &
-            or      |
-            xor     ^
+    The internal representation of all IP objects is in 128 bit IPv6
+    notation. IPv4 and IPv6 objects may be freely mixed.
 
-    in the same manner as 'vec' strings.
+    The supported operations are described below:
 
-    The IPv6 functions support all rfc1884 formats.
+  Overloaded Operators
 
-      i.e.  x:x:x:x:x:x:x:x:x
-            x:x:x:x:x:x:x:d.d.d.d
-            ::x:x:x
-            ::x:d.d.d.d
-      and so on...
+    Assignment ("=")
+        Has been optimized to copy one NetAddr::IP::Lite object to another
+        very quickly.
 
-    * $dotquad = inet_ntoa($netaddr);
-        Convert a packed IPv4 network address to a dot-quad IP address.
+    "->copy()"
+        The assignment ("=") operation is only put in to operation when the
+        copied object is further mutated by another overloaded operation.
+        See the overload manpage SPECIAL SYMBOLS FOR "use overload" for
+        details.
 
-          input:        packed network address
-          returns:      IP address i.e. 10.4.12.123
+        "->copy()" actually creates a new object when called.
 
-    * $netaddr = inet_aton($dotquad);
-        Convert a dot-quad IP address into an IPv4 packed network address.
+    Stringification
+        An object can be used just as a string. For instance, the following
+        code
 
-          input:        IP address i.e. 192.5.16.32
-          returns:      packed network address
+                my $ip = new NetAddr::IP::Lite '192.168.1.123';
+                print "$ip\n";
 
-    * $ipv6addr = ipv6_aton($ipv6_text);
-        Takes an IPv6 address of the form described in rfc1884 and returns a
-        128 bit binary RDATA string.
+        Will print the string 192.168.1.123/32.
 
-          input:        ipv6 text
-          returns:      128 bit RDATA string
+                my $ip = new6 NetAddr::IP::Lite '192.168.1.123';
+                print "$ip\n";
 
-    * $hex_text = ipv6_n2x($ipv6addr);
-        Takes an IPv6 RDATA string and returns an 8 segment IPv6 hex address
+        Will print the string
 
-          input:        128 bit RDATA string
-          returns:      x:x:x:x:x:x:x:x
+    Equality
+        You can test for equality with either "eq" or "==". "eq" allows the
+        comparison with arbitrary strings as well as NetAddr::IP::Lite
+        objects. The following example:
 
-    * $dec_text = ipv6_n2d($ipv6addr);
-        Takes an IPv6 RDATA string and returns a mixed hex - decimal IPv6
-        address with the 6 uppermost chunks in hex and the lower 32 bits in
-        dot-quad representation.
+            if (NetAddr::IP::Lite->new('127.0.0.1','255.0.0.0') eq '127.0.0.1/8') 
+               { print "Yes\n"; }
 
-          input:        128 bit RDATA string
-          returns:      x:x:x:x:x:x:d.d.d.d
+        Will print out "Yes".
 
-    * $ipv6naddr = inet_any2n($dotquad or $ipv6_text);
-        This function converts a text IPv4 or IPv6 address in text format in
-        any standard notation into a 128 bit IPv6 string address. It
-        prefixes any dot-quad address (if found) with '::' and passes it to
-        ipv6_aton.
+        Comparison with "==" requires both operands to be NetAddr::IP::Lite
+        objects.
 
-          input:        dot-quad or rfc1844 address
-          returns:      128 bit IPv6 string
+        In both cases, a true value is returned if the CIDR representation
+        of the operands is equal.
 
-    * $rv = hasbits($bits128);
-        This function returns true if there are one's present in the 128 bit
-        string and false if all the bits are zero.
+    Comparison via >, <, >=, <=, <=> and "cmp"
+        Internally, all network objects are represented in 128 bit format.
+        The numeric representation of the network is compared through the
+        corresponding operation. Comparisons are tried first on the address
+        portion of the object and if that is equal then the cidr portion of
+        the masks are compared.
 
-          i.e.  if (hasbits($bits128)) {
-                  &do_something;
-                }
+    Addition of a constant
+        Adding a constant to a NetAddr::IP::Lite object changes its address
+        part to point to the one so many hosts above the start address. For
+        instance, this code:
 
-          or    if (hasbits($bits128 & $mask128) {
-                  &do_something;
-                }
+            print NetAddr::IP::Lite->new('127.0.0.1') + 5;
 
-        This allows the implementation of logical functions of the form of:
+        will output 127.0.0.6/8. The address will wrap around at the
+        broadcast back to the network address. This code:
 
-                if ($bits128 & $mask128) {
-                    ...
+            print NetAddr::IP::Lite->new('10.0.0.1/24') + 255;
 
-          input:        128 bit IPv6 string
-          returns:      true if any bits are present
+        outputs 10.0.0.0/24.
 
-    * $rv = isIPv4($bits128);
-        This function returns true if there are no on bits present in the
-        IPv6 portion of the 128 bit string and false otherwise.
+    Substraction of a constant
+        The complement of the addition of a constant.
 
-    * $dotquad or $hex_text = inet_n2dx($ipv6naddr);
-        This function does the right thing and returns the text for either a
-        dot-quad IPv4 or a hex notation IPv6 address.
+    Auto-increment
+        Auto-incrementing a NetAddr::IP::Lite object causes the address part
+        to be adjusted to the next host address within the subnet. It will
+        wrap at the broadcast address and start again from the network
+        address.
 
-          input:        128 bit IPv6 string
-          returns:      ddd.ddd.ddd.ddd
-                    or  x:x:x:x:x:x:x:x
+    Auto-decrement
+        Auto-decrementing a NetAddr::IP::Lite object performs exactly the
+        opposite of auto-incrementing it, as you would expect.
 
-    * $dotquad or $dec_text = inet_n2ad($ipv6naddr);
-        This function does the right thing and returns the text for either a
-        dot-quad IPv4 or a hex::decimal notation IPv6 address.
+  Methods
 
-          input:        128 bit IPv6 string
-          returns:      ddd.ddd.ddd.ddd
-                    or  x:x:x:x:x:x:ddd.ddd.ddd.dd
+    "->new([$addr, [ $mask|IPv6 ]])"
+    "->new6([$addr, [ $mask]])"
+        These methods creates a new address with the supplied address in
+        "$addr" and an optional netmask "$mask", which can be omitted to get
+        a /32 or /128 netmask for IPv4 / IPv6 addresses respectively
 
-    * $ipv6naddr = ipv4to6($netaddr);
-        Convert an ipv4 network address into an ipv6 network address.
+        "->new6" marks the address as being in ipV6 address space even if
+        the format would suggest otherwise.
 
-          input:        32 bit network address
-          returns:      128 bit network address
+          i.e.  ->new6('1.2.3.4') will result in ::102:304
 
-    * $ipv6naddr = mask4to6($netaddr);
-        Convert an ipv4 netowrk address into an ipv6 network mask.
+          addresses submitted to ->new in ipV6 notation will
+          remain in that notation permanently. i.e.
+                ->new('::1.2.3.4') will result in ::102:304
+          whereas new('1.2.3.4') would print out as 1.2.3.4
+
+          See "STRINGIFICATION" below.
+
+        "$addr" can be almost anything that can be resolved to an IP address
+        in all the notations I have seen over time. It can optionally
+        contain the mask in CIDR notation.
+
+        prefix notation is understood, with the limitation that the range
+        speficied by the prefix must match with a valid subnet.
+
+        Addresses in the same format returned by "inet_aton" or
+        "gethostbyname" can also be understood, although no mask can be
+        specified for them. The default is to not attempt to recognize this
+        format, as it seems to be seldom used.
+
+        To accept addresses in that format, invoke the module as in
+
+          use NetAddr::IP::Lite ':aton'
+
+        If called with no arguments, 'default' is assumed.
+
+        "$addr" can be any of the following and possibly more...
+
+          n.n
+          n.n/mm
+          n.n.n
+          n.n.n/mm
+          n.n.n.n
+          n.n.n.n/mm            32 bit cidr notation
+          n.n.n.n/m.m.m.m
+          loopback, localhost, broadcast, any, default
+          x.x.x.x/host
+          0xABCDEF, 0b111111000101011110, (a bcd number)
+          a netaddr as returned by 'inet_aton'
+
+        Any RFC1884 notation
+
+          ::n.n.n.n
+          ::n.n.n.n/mmm         128 bit cidr notation
+          ::n.n.n.n/::m.m.m.m
+          ::x:x
+          ::x:x/mmm
+          x:x:x:x:x:x:x:x
+          x:x:x:x:x:x:x:x/mmm
+          x:x:x:x:x:x:x:x/m:m:m:m:m:m:m:m any RFC1884 notation
+          loopback, localhost, unspecified, any, default
+          ::x:x/host
+          0xABCDEF, 0b111111000101011110 within the limits
+          of perl's number resolution
+          123456789012  a 'big' bcd number i.e. Math::BigInt
+
+        If called with no arguments, 'default' is assumed.
+
+    "->broadcast()"
+        Returns a new object refering to the broadcast address of a given
+        subnet. The broadcast address has all ones in all the bit positions
+        where the netmask has zero bits. This is normally used to address
+        all the hosts in a given subnet.
+
+    "->network()"
+        Returns a new object refering to the network address of a given
+        subnet. A network address has all zero bits where the bits of the
+        netmask are zero. Normally this is used to refer to a subnet.
+
+    "->addr()"
+        Returns a scalar with the address part of the object as an IPv4 or
+        IPv6 text string as appropriate. This is useful for printing or for
+        passing the address part of the NetAddr::IP::Lite object to other
+        components that expect an IP address. If the object is an ipV6
+        address or was created using ->new6($ip) it will be reported in ipV6
+        hex format otherwise it will be reported in dot quad format only if
+        it resides in ipV4 address space.
+
+    "->mask()"
+        Returns a scalar with the mask as an IPv4 or IPv6 text string as
+        described above.
+
+    "->masklen()"
+        Returns a scalar the number of one bits in the mask.
+
+    "->bits()"
+        Returns the width of the address in bits. Normally 32 for v4 and 128
+        for v6.
+
+    "->version()"
+        Returns the version of the address or subnet. Currently this can be
+        either 4 or 6.
+
+    "->cidr()"
+        Returns a scalar with the address and mask in CIDR notation. A
+        NetAddr::IP::Lite object *stringifies* to the result of this
+        function. (see comments about ->new6() and ->addr() for output
+        formats)
+
+    "->aton()"
+        Returns the address part of the NetAddr::IP::Lite object in the same
+        format as the "inet_aton()" or "ipv6_aton" function respectively. If
+        the object was created using ->new6($ip), the address returned will
+        always be in ipV6 format, even for addresses in ipV4 address space.
+
+    "->range()"
+        Returns a scalar with the base address and the broadcast address
+        separated by a dash and spaces. This is called range notation.
+
+    "->numeric()"
+        When called in a scalar context, will return a numeric
+        representation of the address part of the IP address. When called in
+        an array contest, it returns a list of two elements. The first
+        element is as described, the second element is the numeric
+        representation of the netmask.
+
+        This method is essential for serializing the representation of a
+        subnet.
+
+    "$me->contains($other)"
+        Returns true when "$me" completely contains "$other". False is
+        returned otherwise and "undef" is returned if "$me" and "$other" are
+        not both "NetAddr::IP::Lite" objects.
+
+    "$me->within($other)"
+        The complement of "->contains()". Returns true when "$me" is
+        completely contained within "$other", undef if "$me" and "$other"
+        are not both "NetAddr::IP::Lite" objects.
+
+    "->first()"
+        Returns a new object representing the first useable IP address
+        within the subnet (ie, the first host address).
+
+    "->last()"
+        Returns a new object representing the last useable IP address within
+        the subnet (ie, one less than the broadcast address).
+
+    "->nth($index)"
+        Returns a new object representing the *n*-th useable IP address
+        within the subnet (ie, the *n*-th host address). If no address is
+        available (for example, when the network is too small for "$index"
+        hosts), "undef" is returned.
+
+    "->num()"
+        Returns the number of useable IP addresses within the subnet, not
+        counting the broadcast address.
 
-          input:        32 bit network/mask address
-          returns:      128 bit network/mask address
-
-        NOTE: returns the high 96 bits as one's
-
-    * $ipv6naddr = ipanyto6($netaddr);
-        Similar to ipv4to6 except that this function takes either an IPv4 or
-        IPv6 input and always returns a 128 bit IPv6 network address.
-
-          input:        32 or 128 bit network address
-          returns:      128 bit network address
-
-    * $ipv6naddr = maskanyto6($netaddr);
-        Similar to mask4to6 except that this function takes either an IPv4
-        or IPv6 netmask and always returns a 128 bit IPv6 netmask.
-
-          input:        32 or 128 bit network mask
-          returns:      128 bit network mask
-
-    * $netaddr = ipv6to4($pv6naddr);
-        Truncate the upper 96 bits of a 128 bit address and return the lower
-        32 bits. Returns an IPv4 address as returned by inet_aton.
-
-          input:        128 bit network address
-          returns:      32 bit inet_aton network address
-
-    * $bitsXn = shiftleft($bits128,$n);
-          input:        128 bit string variable,
-                        number of shifts [optional]
-          returns:      bits X n shifts
-
-          NOTE: a single shift is performed 
-                if $n is not specified
-
-    * addconst($ipv6naddr,$signed_32con);
-        Add a signed constant to a 128 bit string variable.
-
-          input:        128 bit IPv6 string,
-                        signed 32 bit integer
-          returns:  scalar      carry
-                    array       (carry, result)
-
-    * add128($ipv6naddr1,$ipv6naddr2);
-        Add two 128 bit string variables.
-
-          input:        128 bit string var1,
-                        128 bit string var2
-          returns:  scalar      carry
-                    array       (carry, result)
-
-    * sub128($ipv6naddr1,$ipv6naddr2);
-        Subtract two 128 bit string variables.
-
-          input:        128 bit string var1,
-                        128 bit string var2
-          returns:  scalar      carry
-                    array       (carry, result)
-    
-        Note: The carry from this operation is the result of adding the
-        one's complement of ARG2 +1 to the ARG1. It is logically NOT borrow.
-
-                i.e.    if ARG1 >= ARG2 then carry = 1
-                or      if ARG1  < ARG2 then carry = 0
-
-    * ($spurious,$cidr) = notcontiguous($mask128);
-        This function counts the bit positions remaining in the mask when
-        the rightmost '0's are removed.
-
-                input:  128 bit netmask
-                returns true if there are spurious
-                            zero bits remaining in the
-                            mask, false if the mask is
-                            contiguous one's,
-                        128 bit cidr number
-
-    * $bcdtext = bin2bcd($bits128);
-        Convert a 128 bit binary string into binary coded decimal text
-        digits.
-
-          input:        128 bit string variable
-          returns:      string of bcd text digits
-
-    * $bits128 = bcd2bin($bcdtxt);
-        Convert a bcd text string to 128 bit string variable
-
-          input:        string of bcd text digits
-          returns:      128 bit string variable
-
-    * $modetext = mode;
-        Returns the operating mode of this module.
-
-                input:          none
-                returns:        "Pure Perl"
-                           or   "CC XS"
-
-EXAMPLES
-      # convert any textual IP address into a 128 bit vector
-      #
-      sub text2vec {
-        my($anyIP,$anyMask) = @_;
-
-      # not IPv4 bit mask
-        my $notiv4 = ipv6_aton('FFFF:FFFF:FFFF:FFFF:FFFF:FFFF::');
-
-        my $vecip   = inet_any2n($anyIP);
-        my $mask    = inet_any2n($anyMask);
-
-      # extend mask bits for IPv4
-        my $bits = 128;     # default
-        unless (hasbits($mask & $notiv4)) {
-          $mask |= $notiv4;
-          $bits = 32;
-        }
-        return ($vecip, $mask, $bits);
-      }
-
-      ... alternate implementation, a little faster
-
-      sub text2vec {
-        my($anyIP,$anyMask) = @_;
-
-      # not IPv4 bit mask
-        my $notiv4 = ipv6_aton('FFFF:FFFF:FFFF:FFFF:FFFF:FFFF::');
-
-        my $vecip   = inet_any2n($anyIP);
-        my $mask    = inet_any2n($anyMask);
-
-      # extend mask bits for IPv4
-        my $bits = 128;     # default
-        if (isIPv4($mask)) {
-          $mask |= $notiv4;
-          $bits = 32;
-        }
-        return ($vecip, $mask, $bits);
-      }
-
-      ... elsewhere
-        $nip = {
-            addr    => $vecip,
-            mask    => $mask,
-            bits    => $bits,
-        };
-
-      # return network and broadcast addresses from IP and Mask
-      #
-      sub netbroad {
-        my($nip) = shift;
-        my $notmask = ~ $nip->{mask};
-        my $bcast   = $nip->{addr} | $notmask;
-        my $network = $nip->{addr} & $nip->{mask};
-        return ($network, $broadcast);
-      }
-
-      # check if address is within a network
-      #
-      sub within {
-        my($nip,$net) = @_;
-        my $addr = $nip->{addr}
-        my($nw,$bc) = netbroad($net);
-      # arg1 >= arg2, sub128 returns true
-        return (sub128($addr,$nw) && sub128($bc,$addr))
-            ? 1 : 0;
-      }
-
-      # add a constant, wrapping at netblock boundries
-      # to subtract the constant, negate it before calling 
-      # 'addwrap' since 'addconst' will extend the sign bits
-      #
-      sub addwrap {
-        my($nip,$const) = @_;
-        my $mask    = $nip->{addr};
-        my $bits    = $nip->{bits};
-        my $notmask = ~ $mask;
-        my $hibits  = $addr & $mask;
-        my $addr = addconst($addr,$const);
-        my $wraponly = $addr & $notmask;
-        my $newip = {
-            addr    => $hibits | $wraponly,
-            mask    => $mask,
-            bits    => $bits,
-        };
-        # bless $newip as appropriate
-        return $newip;
-      }     
-    
 EXPORT_OK
-            inet_aton
-            inet_ntoa
-            ipv6_aton
-            ipv6_n2x
-            ipv6_n2d
-            inet_any2n
-            hasbits
-            isIPv4
-            inet_n2dx
-            inet_n2ad
-            ipv4to6
-            mask4to6
-            ipanyto6
-            maskanyto6
-            ipv6to4
-            shiftleft
-            addconst
-            add128
-            sub128
-            notcontiguous
-            bin2bcd
-            bcd2bin
-            mode
+            Zero
+            Ones
+            V4mask
+            V4net
+            :aton
 
 AUTHOR
-    Michael Robinton <michael@bizsystems.com>
+    Luis E. Muñoz <luismunoz@cpan.org> Michael Robinton
+    <michael@bizsystems.com>
 
-ACKNOWLEDGEMENTS
-    The following functions are used in whole or in part as include files to
-    Util.xs. The copyright is include in the file.
+WARRANTY
+    This software comes with the same warranty as perl itself (ie, none), so
+    by using it you accept any and all the liability.
 
-      file:              function:
+LICENSE
+    This software is (c) Luis E. Muñoz, 1999 - 2005, and (c) Michael
+    Robinton, 2006. It can be used under the terms of the perl artistic
+    license provided that proper credit for the work of the author is
+    preserved in the form of this copyright notice and license for this
+    module.
 
-      miniSocket.inc  inet_aton, inet_ntoa
-
-    inet_aton, inet_ntoa are from the perl-5.8.0 release by Larry Wall,
-    copyright 1989-2002. inet_aton, inet_ntoa code is current through
-    perl-5.9.3 release. Thank you Larry for making PERL possible for all of
-    us.
-
-COPYRIGHT
-    Copyright 2003 - 2006, Michael Robinton <michael@bizsystems.com>
-
-    This program is free software; you can redistribute it and/or modify it
-    under the terms of the GNU General Public License (except as noted
-    otherwise in individuals sub modules) published by the Free Software
-    Foundation; either version 2 of the License, or (at your option) any
-    later version.
-
-    This program is distributed in the hope that it will be useful, but
-    WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-    Public License for more details.
-
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-
-AUTHOR
-    Michael Robinton <michael@bizsystems.com>
+SEE ALSO
+    perl(1), NetAddr::IP(3), NetAddr::IP::Util(3)
 

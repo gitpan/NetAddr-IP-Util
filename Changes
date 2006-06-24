@@ -1,42 +1,62 @@
-Revision history for Perl extension NetAddr::IP::Util
+Revision history for Perl extension NetAddr::IP::Lite
 
-0.08	Wed Apr 26 18:33:12 PDT 2006
-	correct documentation error
-	add ipv6to4
+0.11  Wed Jun 14 14:53:21 PDT 2006
+	add 'sub new6' and related functionality to methods
+	that print or return v4/6 information or text.
 
-0.07  Sun Apr 23 16:11:56 PDT 2006
-	correct reporting error in UtilPP v0.04 for
-	incorrect argument length in ipv4 -> 6 conversions
+	add $self->{isv6} flag for hint to ipV6 status
 
-	add conditional netaddr conversion functions
-	ipanyto6, maskanyto6 to Util.xs and UtilPP v0.05
+	corrected bug in sub num that miscalcluated the number
+	of IP's in a net for /31 /32
 
-0.06  Tue Apr 18 16:50:53 PDT 2006
-	add ipv4to6, mask4to6 to Util.pm and UtilPP.pm v0.03
+0.10  Tue Jun 13 14:07:46 PDT 2006
+	bring 'sub new' into full compliance with NetAddr::IP,
+	correct compatibility with for ==,>,<,=>,>=,<=>,cmp
+	and update documentation to reflect actual implementation
 
-0.05  Sat Apr 15 15:48:17 PDT 2006
-	Fixed some typo's in Makefile.PL that 
-	failed to update README during build
+	add 'copy' function that return a completely new object
 
-0.04  Wed Apr 12 15:43:33 PDT 2006
-	add Util_IS.pm to guarantee that the XS lib is not 
-	loaded if a previous incarnation of the same version
-	has previously been installed on the system and the
-	module is built with -noxs
+	export (Zero Ones V4mask V4net)
 
-0.03  Tue Apr  4 21:55:35 PDT 2006
-	udate minisocket to perl-5.9.3, add header 
-	file for backwards compatibility
+	update Util.pm v0.15 so shiftleft returns original
+	argument when the shift count is zero or undefined
 
-	add function 'notcontiguous' to return cidr size
-	and check for spurious bits in the network mask
+0.09  Tue Jun  6 08:37:01 PDT 2006
+	update Util/Makefile.PM to check for link libraries
+	that ExtUtils::MakeMaker does not find properly
 
-0.02  Fri Mar 31 12:44:15 PST 2006
-	added test for illegal characters to ipv6_aton
+	remove 'use warnings' from Lite.pm for backwards 
+	compatibility with older perl versions
 
-	added UtilPP for Pure Perl functionality for the 
-	WinTel folks that don't have gcc on their systems
+0.08  Tue Jun  6 08:33:11 PDT 2006
+	update Util.xs for build on windoze
 
-0.01  Tue Mar 28 16:42:44 PST 2006
+0.07  Tue Jun  6 08:21:12 PDT 2006
+	update NetAddr::IP::Util to v0.12
+
+0.06  Mon Jun  5 21:34:28 PDT 2006
+	fix Sparc problems in Util v0.11
+    1)	add workaround for OS's that do not have inet_aton
+
+    2)	add workaround for compilers that do not understand
+	#if MACRO1 == MACRO2
+
+0.05  Sun May  7 18:06:43 PDT 2006
+	updated UtilPP.pm v0.06 to remove unnecessary pack(unpack) sequences
+	to speed up ipv6->4, ipv4->6 conversions
+
+0.04  Fri Apr 28 17:36:28 PDT 2006
+	left Util/Makefile.pl out of the top level distro
+
+0.03  Fri Apr 28 17:26:51 PDT 2006
+	oops! left prerequsite Util 0.08 in the Makefile
+	when it is include in this distro
+
+0.02  Fri Apr 28 16:11:00 PDT 2006
+	update Lite.pm to accept ->new('addr/mask')
+	where addr and mask are both in IP address format
+
+	add test for above t/netaddr.t
+
+0.01  Wed Apr 26 19:03:18 PDT 2006
 	initial release
-

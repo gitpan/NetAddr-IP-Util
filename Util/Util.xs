@@ -17,24 +17,43 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef _CYGWIN
+#include <windows.h>
+#endif
+
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
-/*	include stuff to keep minisocket updated to latest version	*/
-#include "xs_include/my_handy.h"
+
+#ifdef _CYGWIN
+#include <Win32-Extensions.h>
+#endif
+
+/*	take care of missing u_int32_t definitions windoze/sun		*/
+#include "u_intxx.h"
 
 /*	needed for testing with 'printf'
 #include <stdio.h>
  */
-#include <endian.h>
 
-union n128
+#ifdef __cplusplus
+}
+#endif
+
+/*	workaround for OS's without inet_aton			*/
+#include "xs_include/inet_aton.c"
+
+typedef union
 {
   u_int32_t     u[4];
   unsigned char c[16];
-};
+} n128;
 
-union n128 c128, a128;
+n128 c128, a128;
 
 u_int32_t wa[4], wb[4];		/*	working registers	*/
 
@@ -151,11 +170,15 @@ netswap_copy(void * dest, void * src, int len)
   register u_int32_t * d = dest, * s = src;
 
   for (/* -- */;len>0;len--) {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#ifdef host_is_LITTLE_ENDIAN
     *d++ =  (((*s & 0xff000000) >> 24) | ((*s & 0x00ff0000) >>  8) | \
              ((*s & 0x0000ff00) <<  8) | ((*s & 0x000000ff) << 24));
 #else
+# ifdef host_is_BIG_ENDIAN
     *d++ = *s;
+# else
+# error ENDIANness not defined
+# endif
 #endif
     s++;
   }
@@ -166,7 +189,7 @@ netswap_copy(void * dest, void * src, int len)
 void
 netswap(void * ap, int len)
 {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#ifdef host_is_LITTLE_ENDIAN
   register u_int32_t * a = ap;
   for (/* -- */;len >0;len--) {
     *a++ =  (((*a & 0xff000000) >> 24) | ((*a & 0x00ff0000) >>  8) | \
@@ -431,21 +454,23 @@ PPCODE:
 	}
 	else if (ix == 1) {
 	  if (items < 2) {
-	    i = 1;
+	    memcpy(wa,ap,16);
+	  }
+	  else if ((i = SvIV(ST(1))) == 0) {
+	    memcpy(wa,ap,16);
+	  }
+	  else if (i < 0 || i > 128) {
+	    croak("Bad arg value for %s, is %d, should be 0 thru 128",
+		"NetAddr::IP::Util::shiftleft",i);
 	  }
 	  else {
-	    i = SvIV(ST(1));
-	    if (i < 1 || i > 128) {
-	      croak("Bad arg value for %s, is %d, should be 1 thru 128",
-		"NetAddr::IP::Util::shiftleft",i);
-	    }
+	    netswap_copy(wa,ap,4);
+	    do {
+		_128x2(wa);
+		i--;
+	    } while (i > 0);
+	    netswap(wa,4);
 	  }
-	  netswap_copy(wa,ap,4);
-	  do {
-	    _128x2(wa);
-	    i--;
-	  } while (i > 0);
-	  netswap(wa,4);
 	}
 	else {
 	  memcpy(wa,ap,16);
